@@ -17,9 +17,9 @@ The application runs locally using **Ollama**, provides a web interface using **
 
 ## Team members
 
-- Member 1 Name — email@example.com
-- Member 2 Name — email@example.com
-- Member 3 Name — email@example.com
+- Member 1 Peng Ren — 1020469757@qq.com
+- Member 2 Zhenliang Hao — 1158344889@qq.com
+- Member 3 Mu Zhao — zhaomu817@163.com
 - Member 4 Yilin Lai - lyl1784553624@gmail.com
 
 ---
