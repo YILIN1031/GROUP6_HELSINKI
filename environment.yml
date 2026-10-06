@@ -1,0 +1,16 @@
+name: dev-ai-project
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - ollama>=0.4
+      - gradio
+      - pydantic
+      - python-dotenv
+      - pytest
+      - pypdf
+      - numpy
