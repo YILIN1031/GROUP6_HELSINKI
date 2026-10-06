@@ -7,8 +7,10 @@ dependencies:
   - python=3.12
   - pip
   - pip:
-      - ollama
+      - ollama>=0.4
       - gradio
       - pydantic
       - python-dotenv
       - pytest
+      - pypdf
+      - numpy
