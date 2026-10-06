@@ -18,6 +18,28 @@ class ModelNotFoundError(ModelClientError):
     pass
 
 
+def translate_ollama_error(err: Exception, model_name: str, base_url: str) -> ModelClientError:
+    """
+    Converts a low-level Ollama/transport exception into a ModelClientError subclass.
+
+    Shared by the generation client and the embedding client. Typed checks come
+    first (the ollama library raises ConnectionError when the server is unreachable
+    and ResponseError with status 404 for a missing model); message matching is
+    kept as a fallback for other error types. The caller raises the result `from err`.
+    """
+    if isinstance(err, ConnectionError):
+        return OllamaConnectionError(f"Failed to connect to Ollama service at {base_url}.")
+    if isinstance(err, ollama.ResponseError) and err.status_code == 404:
+        return ModelNotFoundError(f"Model '{model_name}' is not installed in local Ollama.")
+
+    err_str = str(err).lower()
+    if "connection" in err_str or "connect" in err_str or "refused" in err_str:
+        return OllamaConnectionError(f"Failed to connect to Ollama service at {base_url}.")
+    if "not found" in err_str or "404" in err_str:
+        return ModelNotFoundError(f"Model '{model_name}' is not installed in local Ollama.")
+    return ModelClientError(f"Error communicating with Ollama: {err}")
+
+
 class OllamaModelClient:
     """Encapsulates interaction with local Ollama inference server."""
 
@@ -26,18 +48,26 @@ class OllamaModelClient:
         self.model_name = model_name or config.model_name
         self._client = ollama.Client(host=self.base_url)
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """
         Sends a user prompt to local Ollama model and returns generated response text.
-        
+
+        If `system_prompt` is given, it is sent as a separate system message before
+        the user message, keeping application instructions apart from user content.
+
         Raises ModelClientError subclass if connection or execution fails.
         """
+        messages = []
+        if system_prompt is not None:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         try:
             response = self._client.chat(
                 model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
             )
-            
+
             # Standardize extraction from dict or chat response object
             if isinstance(response, dict):
                 return response.get("message", {}).get("content", "")
@@ -46,14 +76,4 @@ class OllamaModelClient:
             return str(response)
 
         except Exception as err:
-            err_str = str(err).lower()
-            if "connection" in err_str or "connect" in err_str or "refused" in err_str:
-                raise OllamaConnectionError(
-                    f"Failed to connect to Ollama service at {self.base_url}."
-                ) from err
-            elif "not found" in err_str or "404" in err_str:
-                raise ModelNotFoundError(
-                    f"Model '{self.model_name}' is not installed in local Ollama."
-                ) from err
-            else:
-                raise ModelClientError(f"Error communicating with Ollama: {err}") from err
+            raise translate_ollama_error(err, self.model_name, self.base_url) from err
