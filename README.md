@@ -1,6 +1,6 @@
 # CourseMate
 
-**A local, retrieval-augmented study assistant for course documents, help you better to learn the new things!**
+**A local, retrieval-augmented study assistant for course documents**
 
 CourseMate is a local AI study assistant that answers questions about a student's own course documents. It first retrieves the relevant passages from an indexed document collection, then asks a locally running language model to answer from those passages, and shows which documents (and PDF pages) were used.
 
@@ -116,6 +116,7 @@ CourseMate is a course-material assistant, not a general chatbot. Two mechanisms
    ```text
    I could not find enough information in the indexed course materials to answer that question reliably.
    ```
+
 2. **Prompt rules.** When retrieval does return chunks, the system prompt instructs the model to say that the material does not cover the question rather than guess.
 
 In the frozen evaluation, the provisional threshold (`RAG_MIN_SCORE=0.5`) did **not** filter the out-of-scope test questions; the model's own declines handled most of them. See [Known limitations](#known-limitations).
@@ -215,6 +216,7 @@ CourseMate can be reused with a different subject (for example, computer-science
    ```bash
    python -m src.rag.ingest
    ```
+
 3. Restart the application:
 
    ```bash
@@ -265,22 +267,22 @@ The user interface never communicates directly with Ollama, the model client, th
 
 # Component responsibilities
 
-| Component                          | Responsibility                                                                                                                                                                                                                                                                                                                                 |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/ui.py`                      | Gradio interface: question box,**Ask CourseMate** button, Markdown answer with Sources, example-question buttons. Calls only `generate_response()`.                                                                                                                                                                                    |
-| `app/main.py`                    | Launches the Gradio app.                                                                                                                                                                                                                                                                                                                       |
-| `src/services/ai_service.py`     | Validates input, calls retrieval, maps retrieval outcomes and model errors to user-facing messages, builds the prompt, calls the model client, and attaches the Sources list.`generate_response()` is the UI entry point and reuses one default service, so the index is loaded once per application run.                                    |
-| `src/services/rag_service.py`    | Loads the index once, checks that it was built with the configured embedding model and the `search_document` task, embeds the question with `search_query`, searches, applies `RAG_TOP_K` and `RAG_MIN_SCORE`, and returns a retrieval status (`ok`, `empty_index`, `no_relevant_context`, `index_mismatch`, `index_error`). |
-| `src/services/prompt_builder.py` | The system prompt with the grounding rules, and the user prompt with delimited `SOURCE n / Document / Page` blocks followed by the question.                                                                                                                                                                                                 |
-| `src/rag/document_loader.py`     | Reads `.pdf` (per page, with page numbers), `.txt` and `.md` (UTF-8), recursively; skips hidden files; normalises whitespace; repairs fragmented PDF text; reports unusable files instead of failing.                                                                                                                                    |
-| `src/rag/chunker.py`             | Splits pages into overlapping character windows that prefer whitespace boundaries, with chunk IDs such as `lecture_04-page12-chunk02`.                                                                                                                                                                                                       |
-| `src/rag/embeddings.py`          | The `Embedder` interface and `OllamaEmbedder`. Applies the Nomic `search_document:` / `search_query:` prefixes only for Nomic Embed models; batches requests.                                                                                                                                                                          |
-| `src/rag/vector_store.py`        | NumPy vector store: add, cosine search, save/load of `embeddings.npy`, `chunks.json` and `metadata.json`, with integrity validation on load.                                                                                                                                                                                             |
-| `src/rag/ingest.py`              | The `python -m src.rag.ingest` command: load → chunk → embed → store → save, with a readable summary and error messages.                                                                                                                                                                                                                 |
-| `src/models/model_client.py`     | Communication with Ollama for generation, including an optional system prompt, and translation of connection / missing-model / other errors.                                                                                                                                                                                                   |
-| `src/schemas/responses.py`       | Pydantic models:`UserRequest`, `AIResponse` (with `sources`, `retrieved_chunks`, `retrieval_status`), `SourceRef`, `RetrievedChunk`.                                                                                                                                                                                             |
-| `src/config.py`                  | Configuration from environment variables /`.env`.                                                                                                                                                                                                                                                                                            |
-| `evaluation/run_eval.py`         | Offline mechanical evaluation harness for the frozen protocol (not part of the app).                                                                                                                                                                                                                                                           |
+| Component | Responsibility |
+|---|---|
+| `app/ui.py` | Gradio interface: question box, **Ask CourseMate** button, Markdown answer with Sources, example-question buttons. Calls only `generate_response()`. |
+| `app/main.py` | Launches the Gradio app. |
+| `src/services/ai_service.py` | Validates input, calls retrieval, maps retrieval outcomes and model errors to user-facing messages, builds the prompt, calls the model client, and attaches the Sources list. `generate_response()` is the UI entry point and reuses one default service, so the index is loaded once per application run. |
+| `src/services/rag_service.py` | Loads the index once, checks that it was built with the configured embedding model and the `search_document` task, embeds the question with `search_query`, searches, applies `RAG_TOP_K` and `RAG_MIN_SCORE`, and returns a retrieval status (`ok`, `empty_index`, `no_relevant_context`, `index_mismatch`, `index_error`). |
+| `src/services/prompt_builder.py` | The system prompt with the grounding rules, and the user prompt with delimited `SOURCE n / Document / Page` blocks followed by the question. |
+| `src/rag/document_loader.py` | Reads `.pdf` (per page, with page numbers), `.txt` and `.md` (UTF-8), recursively; skips hidden files; normalises whitespace; repairs fragmented PDF text; reports unusable files instead of failing. |
+| `src/rag/chunker.py` | Splits pages into overlapping character windows that prefer whitespace boundaries, with chunk IDs such as `lecture_04-page12-chunk02`. |
+| `src/rag/embeddings.py` | The `Embedder` interface and `OllamaEmbedder`. Applies the Nomic `search_document:` / `search_query:` prefixes only for Nomic Embed models; batches requests. |
+| `src/rag/vector_store.py` | NumPy vector store: add, cosine search, save/load of `embeddings.npy`, `chunks.json` and `metadata.json`, with integrity validation on load. |
+| `src/rag/ingest.py` | The `python -m src.rag.ingest` command: load → chunk → embed → store → save, with a readable summary and error messages. |
+| `src/models/model_client.py` | Communication with Ollama for generation, including an optional system prompt, and translation of connection / missing-model / other errors. |
+| `src/schemas/responses.py` | Pydantic models: `UserRequest`, `AIResponse` (with `sources`, `retrieved_chunks`, `retrieval_status`), `SourceRef`, `RetrievedChunk`. |
+| `src/config.py` | Configuration from environment variables / `.env`. |
+| `evaluation/run_eval.py` | Offline mechanical evaluation harness for the frozen protocol (not part of the app). |
 
 ---
 
@@ -351,14 +353,14 @@ Local models keep course documents on the user's machine, need no paid API, and 
 
 # Additional AI capability
 
-- [X] **RAG (Retrieval-Augmented Generation)**
+- [x] **RAG (Retrieval-Augmented Generation)**
 - [ ] Tools / External API integration
 - [ ] Model Context Protocol (MCP)
 - [ ] Agentic workflow
 - [ ] Persistent memory
 - [ ] Multimodal interaction
 
-RAG is central to CourseMate: it grounds answers in the student's own documents, adapts the assistant to a specific course, makes sources traceable, and lets the material be updated by re-running ingestion rather than changing the model.
+RAG is central to CourseMate: it grounds answers in the student's own documents, adapts the assistant to a specific course, makes sources traceable, and lets the material be updated by re-running ingestion rather than changing the model. 
 
 ---
 
@@ -420,18 +422,18 @@ The model may still mention documents, pages or "SOURCE n" labels in the answer 
 
 # Technology stack
 
-| Layer                | Technology                        | Purpose                                  |
-| -------------------- | --------------------------------- | ---------------------------------------- |
-| Programming language | Python 3.12                       | Main application                         |
-| User interface       | Gradio                            | Local browser-based UI                   |
-| Generation runtime   | Ollama                            | Local LLM inference                      |
-| Generation model     | `llama3.2`                      | Answer generation                        |
-| Embedding model      | `nomic-embed-text` (via Ollama) | Document and query embeddings            |
-| Vector storage       | NumPy (`.npy` + JSON files)     | Local index and cosine-similarity search |
-| PDF parsing          | pypdf                             | Text extraction from PDFs                |
-| Validation           | Pydantic                          | Request and response schemas             |
-| Configuration        | python-dotenv                     | Environment configuration                |
-| Testing              | pytest                            | Automated tests                          |
+| Layer | Technology | Purpose |
+|---|---|---|
+| Programming language | Python 3.12 | Main application |
+| User interface | Gradio | Local browser-based UI |
+| Generation runtime | Ollama | Local LLM inference |
+| Generation model | `llama3.2` | Answer generation |
+| Embedding model | `nomic-embed-text` (via Ollama) | Document and query embeddings |
+| Vector storage | NumPy (`.npy` + JSON files) | Local index and cosine-similarity search |
+| PDF parsing | pypdf | Text extraction from PDFs |
+| Validation | Pydantic | Request and response schemas |
+| Configuration | python-dotenv | Environment configuration |
+| Testing | pytest | Automated tests |
 
 Dependencies are listed in [`environment.yml`](environment.yml).
 
@@ -441,17 +443,17 @@ Dependencies are listed in [`environment.yml`](environment.yml).
 
 Configuration is read from environment variables, or from a `.env` file in the repository root (see [`.env.example`](.env.example)):
 
-| Variable              | Default                    | Meaning                                                       |
-| --------------------- | -------------------------- | ------------------------------------------------------------- |
-| `OLLAMA_BASE_URL`   | `http://localhost:11434` | Ollama server address                                         |
-| `MODEL_NAME`        | `llama3.2`               | Generation model                                              |
-| `EMBEDDING_MODEL`   | `nomic-embed-text`       | Embedding model                                               |
-| `DOCUMENTS_PATH`    | `data/documents`         | Folder read by `python -m src.rag.ingest`                   |
-| `VECTOR_STORE_PATH` | `data/vector_store`      | Where the index is written and loaded                         |
-| `RAG_TOP_K`         | `4`                      | Maximum number of chunks passed to the model                  |
-| `RAG_CHUNK_SIZE`    | `1000`                   | Target chunk length in characters                             |
-| `RAG_CHUNK_OVERLAP` | `200`                    | Approximate overlap between consecutive chunks, in characters |
-| `RAG_MIN_SCORE`     | `0.5`                    | Minimum cosine similarity for a chunk to count as relevant    |
+| Variable | Default | Meaning |
+|---|---|---|
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server address |
+| `MODEL_NAME` | `llama3.2` | Generation model |
+| `EMBEDDING_MODEL` | `nomic-embed-text` | Embedding model |
+| `DOCUMENTS_PATH` | `data/documents` | Folder read by `python -m src.rag.ingest` |
+| `VECTOR_STORE_PATH` | `data/vector_store` | Where the index is written and loaded |
+| `RAG_TOP_K` | `4` | Maximum number of chunks passed to the model |
+| `RAG_CHUNK_SIZE` | `1000` | Target chunk length in characters |
+| `RAG_CHUNK_OVERLAP` | `200` | Approximate overlap between consecutive chunks, in characters |
+| `RAG_MIN_SCORE` | `0.5` | Minimum cosine similarity for a chunk to count as relevant |
 
 `RAG_MIN_SCORE=0.5` is a **provisional, untuned** value chosen before evaluation. The evaluation showed that it does not separate out-of-scope questions from course questions for this corpus. Changing the embedding model or the chunk settings requires re-running ingestion.
 
@@ -535,13 +537,13 @@ http://localhost:7860
 
 The questions below illustrate the intended types of use with the Swedish/YKI material. Answer quality varies; see [Evaluation results](#evaluation-results).
 
-| Type                 | Example question                                                 | Intended behaviour                                                     |
-| -------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Fact question        | "How long is the speaking part of the exam?"                     | Answer from the retrieved notes and list the source document and page. |
-| Structure / guidance | "How should I structure a formal email?"                         | Summarise the guidance found in the material.                          |
-| Phrases              | "Give me Swedish phrases for complaining about a late delivery." | Quote or adapt phrases from the material.                              |
-| Revision             | "Create revision questions about the writing test."              | Generate questions answerable from the retrieved material.             |
-| Unsupported          | "Who won a football match yesterday?"                            | Say that the indexed course materials do not cover the question.       |
+| Type | Example question | Intended behaviour |
+|---|---|---|
+| Fact question | "How long is the speaking part of the exam?" | Answer from the retrieved notes and list the source document and page. |
+| Structure / guidance | "How should I structure a formal email?" | Summarise the guidance found in the material. |
+| Phrases | "Give me Swedish phrases for complaining about a late delivery." | Quote or adapt phrases from the material. |
+| Revision | "Create revision questions about the writing test." | Generate questions answerable from the retrieved material. |
+| Unsupported | "Who won a football match yesterday?" | Say that the indexed course materials do not cover the question. |
 
 The UI shows example-question buttons with Swedish/YKI-oriented questions. Clicking one fills in the question box; the examples are defined in `app/ui.py` and are not part of the frozen evaluation. They are **not generated from the indexed documents** and therefore remain unchanged if the corpus is replaced, unless `EXAMPLE_QUESTIONS` in `app/ui.py` is edited.
 
@@ -595,12 +597,12 @@ The formal run has been completed; raw run output stays local under the git-igno
 
 The single formal run (`20260927T013236Z`, 25 cases, 67 run records) was graded by a human team member. Full details are in [`evaluation/evaluation_results.md`](evaluation/evaluation_results.md).
 
-| Category                  |        Total |        Pass |     Partial |         Fail |
-| ------------------------- | -----------: | ----------: | ----------: | -----------: |
-| Successful cases          |           10 |           2 |           2 |            6 |
-| Difficult cases           |            7 |           0 |           1 |            6 |
-| Failure/adversarial cases |            8 |           4 |           2 |            2 |
-| **Total**           | **25** | **6** | **5** | **14** |
+| Category | Total | Pass | Partial | Fail |
+|---|---:|---:|---:|---:|
+| Successful cases | 10 | 2 | 2 | 6 |
+| Difficult cases | 7 | 0 | 1 | 6 |
+| Failure/adversarial cases | 8 | 4 | 2 | 2 |
+| **Total** | **25** | **6** | **5** | **14** |
 
 The 6 / 25 PASS rate is a test-suite outcome, **not** an estimate of accuracy on typical user questions: the suite deliberately includes difficult, failure-handling and adversarial cases.
 
@@ -613,6 +615,8 @@ Main findings:
 - **Prompt injection:** a user-level injection was resisted; an injection inside a retrieved document was followed in all three runs.
 - **Privacy:** in two runs the answer reproduced a document owner's name and email address from a watermark in the retrieved text.
 - Answers varied between repeated runs even though retrieval was identical.
+
+## 
 
 # Academic integrity
 
@@ -653,18 +657,18 @@ Possible extensions, none of which are implemented:
 
 # Development plan
 
-| Phase | Content                                         | Status |
-| ----- | ----------------------------------------------- | ------ |
-| 1     | Configuration, dependencies, repository hygiene | Done   |
-| 2     | Document loading                                | Done   |
-| 3     | Chunking                                        | Done   |
-| 4     | Embeddings and model-client hardening           | Done   |
-| 5     | NumPy vector store                              | Done   |
-| 6     | Ingestion command                               | Done   |
-| 7     | RAG retrieval service                           | Done   |
-| 8     | Grounded generation in `AIService`            | Done   |
-| 9     | Gradio interface                                | Done   |
-| 10    | Frozen evaluation, human grading, documentation | Done   |
+| Phase | Content | Status |
+|---|---|---|
+| 1 | Configuration, dependencies, repository hygiene | Done |
+| 2 | Document loading | Done |
+| 3 | Chunking | Done |
+| 4 | Embeddings and model-client hardening | Done |
+| 5 | NumPy vector store | Done |
+| 6 | Ingestion command | Done |
+| 7 | RAG retrieval service | Done |
+| 8 | Grounded generation in `AIService` | Done |
+| 9 | Gradio interface | Done |
+| 10 | Frozen evaluation, human grading, documentation | Done |
 
 ---
 
@@ -672,24 +676,24 @@ Possible extensions, none of which are implemented:
 
 The implementation and evaluation phases are complete. The unchecked quality items below are retained deliberately: they record limitations found by the frozen evaluation rather than unfinished coding tasks.
 
-- [X] The Gradio UI launches successfully.
-- [X] The UI communicates only with the service layer.
-- [X] Ollama generation works locally.
-- [X] Course documents can be loaded.
-- [X] Documents are divided into chunks.
-- [X] Chunks are embedded.
-- [X] Embeddings are stored locally.
-- [X] User queries are embedded.
-- [X] Relevant document chunks can be retrieved (retrieval quality is limited; see the evaluation).
-- [X] Retrieved context is passed to the LLM.
-- [X] Sources are displayed.
-- [X] Empty input is handled gracefully.
-- [X] Ollama failures are handled gracefully.
-- [X] Automated tests pass.
-- [X] Evaluation cases cover normal, difficult, and failure scenarios.
-- [X] Evaluation results are documented.
-- [X] `docs/architecture.md` reflects the final implementation.
-- [X] README setup instructions match the final application.
+- [x] The Gradio UI launches successfully.
+- [x] The UI communicates only with the service layer.
+- [x] Ollama generation works locally.
+- [x] Course documents can be loaded.
+- [x] Documents are divided into chunks.
+- [x] Chunks are embedded.
+- [x] Embeddings are stored locally.
+- [x] User queries are embedded.
+- [x] Relevant document chunks can be retrieved (retrieval quality is limited; see the evaluation).
+- [x] Retrieved context is passed to the LLM.
+- [x] Sources are displayed.
+- [x] Empty input is handled gracefully.
+- [x] Ollama failures are handled gracefully.
+- [x] Automated tests pass.
+- [x] Evaluation cases cover normal, difficult, and failure scenarios.
+- [x] Evaluation results are documented.
+- [x] `docs/architecture.md` reflects the final implementation.
+- [x] README setup instructions match the final application.
 
 ---
 
