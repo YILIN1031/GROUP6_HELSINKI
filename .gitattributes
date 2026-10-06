@@ -1,2 +1,0 @@
-# Evaluation fixtures are frozen byte-for-byte (see evaluation/PROTOCOL.md).
-evaluation/fixtures/** text eol=lf
