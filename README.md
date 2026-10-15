@@ -1,3 +1,5 @@
+# VIDEO LINK: [here](https://drive.google.com/file/d/1K9MI0ykN-m_YZJ_N5aDaSn34BcJIhjcZ/view?usp=sharing)
+---
 # CourseMate
 
 **A local, retrieval-augmented study assistant for course documents**
